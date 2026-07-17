@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Security Check - PocketsInFull</title>
+
+  <!-- Verisoul synchronous installation: blocks page rendering until SDK loads -->
+  <script src="https://js.pocketsinfull.com/bundle.js" verisoul-project-id="78312c0f-f8b9-47ad-8707-5e1c9e38e311"></script>
+
+  <style>
+    :root {
+      --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --border:#2a3140;
+      --text:#e8ecf3; --muted:#98a2b3; --green:#2fbf71; --yellow:#f5b942;
+      --red:#ff6b6b; --blue:#56a8ff; --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      --sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:var(--sans); line-height:1.45; }
+    .wrap { max-width:1120px; margin:0 auto; padding:24px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:16px; }
+    h1 { margin:0 0 8px; font-size:28px; }
+    h2 { margin:0 0 12px; font-size:18px; }
+    .muted { color:var(--muted); font-size:14px; }
+    .status { padding:12px 14px; border-radius:10px; background:#111827; border:1px solid var(--border); margin-top:12px; font-weight:700; }
+    .mono { font-family:var(--mono); font-size:13px; white-space:pre-wrap; word-break:break-word; }
+    .box { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:12px; min-height:56px; }
+    label { display:block; color:var(--muted); font-size:13px; margin:10px 0 6px; }
+    input, textarea { width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px 12px; font:inherit; outline:none; }
+    textarea { min-height:115px; font-family:var(--mono); font-size:13px; }
+    .btns { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    button { border:0; border-radius:10px; padding:10px 14px; font-weight:700; cursor:pointer; color:#0b1220; background:#d7e3f4; }
+    button.primary { background:var(--blue); }
+    button.success { background:#56d38a; }
+    button.dark { background:#242b39; color:var(--text); border:1px solid var(--border); }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .pillbar { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+    .pill { border:1px solid var(--border); background:var(--panel2); color:var(--muted); border-radius:999px; padding:8px 12px; font-size:13px; }
+    .pill.ok { color:var(--green); }
+    .pill.warn { color:var(--yellow); }
+    .pill.bad { color:var(--red); }
+    .verdict { font-size:26px; font-weight:800; margin:8px 0; }
+    .verdict.real { color:var(--green); }
+    .verdict.suspicious { color:var(--yellow); }
+    .verdict.fake, .verdict.error { color:var(--red); }
+    .signals { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+    .sig { background:var(--panel2); border-radius:8px; padding:9px 11px; display:flex; justify-content:space-between; gap:12px; font-size:13px; }
+    .sig span:first-child { color:var(--muted); }
+    .true { color:var(--red); font-weight:700; }
+    .false { color:var(--green); font-weight:700; }
+    .null { color:var(--muted); }
+    @media (max-width: 860px) { .grid, .signals { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Security Check</h1>
+      <div class="muted">
+        Synchronous script load from <span class="mono">https://js.pocketsinfull.com/bundle.js</span>, then server-side verification through a Netlify Function.
+      </div>
+      <div id="status" class="status">Page loaded. Check will start automatically.</div>
+      <div class="pillbar">
+        <div id="sdkPill" class="pill">SDK checking</div>
+        <div id="sessionPill" class="pill">Session none</div>
+        <div id="backendPill" class="pill">Backend idle</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <div class="card">
+          <h2>Account</h2>
+          <label for="accountId">Account ID</label>
+          <input id="accountId" type="text" />
+
+          <label for="email">Email, optional</label>
+          <input id="email" type="email" placeholder="optional@example.com" />
+
+          <label for="metadata">Metadata JSON</label>
+          <textarea id="metadata">{
+  "source": "auto-page-check",
+  "site": "testuser1234.netlify.app",
+  "custom_hostname": "js.pocketsinfull.com"
+}</textarea>
+
+          <div class="btns">
+            <button id="runBtn" class="primary">Run check again</button>
+            <button id="sessionBtn" class="dark">Get session only</button>
+            <button id="decisionBtn" class="success">Call backend decision</button>
+            <button id="newBtn" class="dark">New account/session</button>
+            <button id="clearBtn" class="dark">Clear logs</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Current session</h2>
+          <div id="sessionBox" class="box mono">No session yet.</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>Decision result</h2>
+          <div id="decisionBox" class="box mono">No backend decision yet.</div>
+          <div id="signalsGrid" class="signals"></div>
+        </div>
+
+        <div class="card">
+          <h2>Event log</h2>
+          <pre id="log" class="box mono" style="min-height:400px"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+let currentSessionId = null;
+let currentSessionPayload = null;
+const COLLECT_MS = 10000;
+const MAX_SESSION_ATTEMPTS = 4;
+
+const statusEl = document.getElementById('status');
+const logEl = document.getElementById('log');
+const sdkPill = document.getElementById('sdkPill');
+const sessionPill = document.getElementById('sessionPill');
+const backendPill = document.getElementById('backendPill');
+const sessionBox = document.getElementById('sessionBox');
+const decisionBox = document.getElementById('decisionBox');
+const signalsGrid = document.getElementById('signalsGrid');
+const accountIdInput = document.getElementById('accountId');
+const emailInput = document.getElementById('email');
+const metadataInput = document.getElementById('metadata');
+const buttons = Array.from(document.querySelectorAll('button'));
+
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+function now() { return new Date().toLocaleTimeString(); }
+function setStatus(text) { statusEl.textContent = text; log('STATUS', text); }
+function log(step, data) {
+  const line = `${now()} | ${step}${data === undefined ? '' : ' | ' + (typeof data === 'string' ? data : JSON.stringify(data, null, 2))}`;
+  logEl.textContent += line + '\n';
+  logEl.scrollTop = logEl.scrollHeight;
+  console.log('[SecurityCheck]', step, data);
+}
+function setPill(el, text, cls='') { el.className = `pill ${cls}`.trim(); el.textContent = text; }
+function setBusy(isBusy) { buttons.forEach(btn => btn.disabled = isBusy); }
+function newAccountId() { return 'netlify-test-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); }
+function parseMetadata() {
+  const raw = metadataInput.value.trim();
+  if (!raw) return {};
+  return JSON.parse(raw);
+}
+function currentAccount() {
+  const account = { id: accountIdInput.value.trim(), metadata: parseMetadata() };
+  const email = emailInput.value.trim();
+  if (email) account.email = email;
+  return account;
+}
+
+function extractSessionId(payload) {
+  return payload?.session_id || payload?.sessionid || payload?.id || null;
+}
+
+function renderSession(payload) {
+  currentSessionPayload = payload;
+  currentSessionId = extractSessionId(payload);
+  sessionBox.textContent = currentSessionId ? JSON.stringify(payload, null, 2) : 'session() returned, but no session_id/sessionid was found.';
+  setPill(sessionPill, currentSessionId ? 'Session ready' : 'Session missing', currentSessionId ? 'ok' : 'bad');
+}
+
+function signalValueClass(value) {
+  if (value === true) return 'true';
+  if (value === false) return 'false';
+  if (value === null || value === undefined || value === '') return 'null';
+  return '';
+}
+
+function addSignal(label, value) {
+  const div = document.createElement('div');
+  div.className = 'sig';
+  const valueText = value === null || value === undefined || value === '' ? 'n/a' : String(value);
+  div.innerHTML = `<span>${label}</span><span class="${signalValueClass(value)}">${valueText}</span>`;
+  signalsGrid.appendChild(div);
+}
+
+function renderDecision(data) {
+  signalsGrid.innerHTML = '';
+  const verisoul = data?.verisoul || data;
+  const extracted = data?.extracted || {};
+  const decision = String(extracted.decision || verisoul?.decision || 'unknown').toLowerCase();
+  const accountScore = extracted.account_score ?? verisoul?.account_score ?? 'n/a';
+  const session = verisoul?.session || {};
+  const risk = session?.risk_signals || {};
+  const riskScores = session?.risk_signal_scores || {};
+  const network = session?.network || {};
+  const device = session?.device || {};
+  const browser = session?.browser || {};
+  const location = session?.location || {};
+  const bot = session?.bot || {};
+
+  const verdictClass = ['real','suspicious','fake'].includes(decision) ? decision : 'error';
+  decisionBox.innerHTML = `<div class="verdict ${verdictClass}">${decision.toUpperCase()}</div>` +
+    `<div>account_score: <b>${accountScore}</b></div>` +
+    `<div class="muted">HTTP status: ${data?.status || 'n/a'} | session_id: ${currentSessionId || 'n/a'}</div>` +
+    `<details style="margin-top:12px"><summary>Full JSON response</summary><pre class="mono">${escapeHtml(JSON.stringify(verisoul, null, 2))}</pre></details>`;
+
+  addSignal('ip_address', network.ip_address);
+  addSignal('connection_type', network.connection_type);
+  addSignal('service_provider', network.service_provider);
+  addSignal('country', location.country_code || session.true_country_code);
+  addSignal('city', location.city);
+  addSignal('device_os', device.os);
+  addSignal('device_category', device.category);
+  addSignal('browser', browser.type ? `${browser.type} ${browser.version || ''}` : undefined);
+  addSignal('vpn', risk.vpn);
+  addSignal('proxy', risk.proxy);
+  addSignal('datacenter', risk.datacenter);
+  addSignal('tor', risk.tor);
+  addSignal('spoofed_ip', risk.spoofed_ip);
+  addSignal('device_network_mismatch', risk.device_network_mismatch);
+  addSignal('location_spoofing', risk.location_spoofing);
+  addSignal('score_proxy', riskScores.proxy);
+  addSignal('score_vpn', riskScores.vpn);
+  addSignal('score_device_risk', riskScores.device_risk);
+  addSignal('mouse_events', bot.mouse_num_events);
+  addSignal('keyboard_events', bot.keyboard_num_events);
+  addSignal('click_events', bot.click_num_events);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+}
+
+async function verifySdk() {
+  if (window.Verisoul && typeof window.Verisoul.session === 'function') {
+    setPill(sdkPill, 'SDK ready', 'ok');
+    log('sdk.ready', { sessionType: typeof window.Verisoul.session, accountType: typeof window.Verisoul.account });
+    return true;
+  }
+  setPill(sdkPill, 'SDK not ready', 'bad');
+  throw new Error('window.Verisoul.session is not available. Check custom hostname, project ID, and browser console.');
+}
+
+async function getSession() {
+  await verifySdk();
+  setStatus(`Collecting signals for ${COLLECT_MS} ms before session()...`);
+  await sleep(COLLECT_MS);
+
+  let lastError;
+  for (let attempt = 1; attempt <= MAX_SESSION_ATTEMPTS; attempt++) {
+    try {
+      log('session.call.start', { attempt });
+      const payload = await window.Verisoul.session();
+      log('session.call.done', payload);
+      renderSession(payload);
+      if (currentSessionId) return currentSessionId;
+      lastError = new Error('No session_id returned.');
+    } catch (e) {
+      lastError = e;
+      log('session.call.error', { attempt, error: String(e) });
+    }
+    await sleep(1000);
+  }
+  throw lastError || new Error('Unable to get Verisoul session.');
+}
+
+async function callBackendDecision() {
+  if (!currentSessionId) await getSession();
+  const account = currentAccount();
+  if (!account.id) throw new Error('Missing Account ID');
+
+  setPill(backendPill, 'Backend calling', 'warn');
+  setStatus('Calling backend verification...');
+  const payload = { session_id: currentSessionId, account };
+  log('backend.request', payload);
+
+  const resp = await fetch('/.netlify/functions/verisoul-decision', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const text = await resp.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  log('backend.response', { status: resp.status, data });
+
+  if (!resp.ok || data.ok === false) {
+    setPill(backendPill, 'Backend error', 'bad');
+    decisionBox.textContent = JSON.stringify(data, null, 2);
+    throw new Error(data.error || data.message || `Backend failed with HTTP ${resp.status}`);
+  }
+  setPill(backendPill, 'Decision ready', 'ok');
+  renderDecision(data);
+  setStatus('Done. Result displayed.');
+}
+
+async function runFullTest() {
+  setBusy(true);
+  try {
+    await verifySdk();
+    await getSession();
+    await callBackendDecision();
+  } catch (e) {
+    setStatus('Error: ' + String(e.message || e));
+    log('error', String(e.stack || e));
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function withBusy(fn) {
+  setBusy(true);
+  try { await fn(); }
+  catch (e) { setStatus('Error: ' + String(e.message || e)); log('error', String(e.stack || e)); }
+  finally { setBusy(false); }
+}
+
+async function resetAll() {
+  accountIdInput.value = newAccountId();
+  currentSessionId = null;
+  currentSessionPayload = null;
+  sessionBox.textContent = 'No session yet.';
+  decisionBox.textContent = 'No backend decision yet.';
+  signalsGrid.innerHTML = '';
+  setPill(sessionPill, 'Session none');
+  setPill(backendPill, 'Backend idle');
+  if (window.Verisoul && typeof window.Verisoul.reinitialize === 'function') {
+    await window.Verisoul.reinitialize();
+    log('sdk.reinitialize.done');
+  }
+  setStatus('New account/session prepared.');
+}
+
+document.getElementById('runBtn').onclick = runFullTest;
+document.getElementById('sessionBtn').onclick = () => withBusy(getSession);
+document.getElementById('decisionBtn').onclick = () => withBusy(callBackendDecision);
+document.getElementById('newBtn').onclick = () => withBusy(resetAll);
+document.getElementById('clearBtn').onclick = () => { logEl.textContent = ''; };
+
+window.addEventListener('load', async () => {
+  accountIdInput.value = newAccountId();
+  log('page.loaded', { href: location.href, customHostname: 'js.pocketsinfull.com', autoRun: true });
+  try {
+    await runFullTest();
+  } catch (e) {
+    setStatus('Automatic check failed: ' + String(e.message || e));
+  }
+});
+</script>
+</body>
+</html>
